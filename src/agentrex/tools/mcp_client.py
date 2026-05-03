@@ -9,6 +9,8 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 ARXIV_SERVER_NAME = "arxiv"
 SEARCH_TOOL_CANDIDATES = ("search_papers", "arxiv_search")
+METADATA_TOOL_CANDIDATES = ("get_paper_metadata", "paper_metadata")
+PDF_TEXT_TOOL_CANDIDATES = ("fetch_pdf_text", "read_paper", "download_paper")
 SUPPORTED_TRANSPORTS = {"streamable_http", "sse"}
 
 
@@ -83,23 +85,61 @@ def _extract_records(payload: Any) -> list[dict[str, Any]]:
 
 
 async def _search_papers_async(query: str, max_results: int) -> list[dict[str, Any]]:
+    result = await _invoke_tool_async(
+        SEARCH_TOOL_CANDIDATES,
+        {"query": query, "max_results": max_results},
+    )
+    return _extract_records(result)
+
+
+async def _get_paper_metadata_async(paper_id: str) -> dict[str, Any]:
+    result = await _invoke_tool_async(METADATA_TOOL_CANDIDATES, {"paper_id": paper_id})
+    records = _extract_records(result)
+    if not records:
+        raise RuntimeError(f"No metadata returned for paper_id={paper_id}")
+    return records[0]
+
+
+async def _fetch_pdf_text_async(paper_id: str) -> str:
+    result = await _invoke_tool_async(PDF_TEXT_TOOL_CANDIDATES, {"paper_id": paper_id})
+    records = _extract_records(result)
+    if not records:
+        raise RuntimeError(f"No PDF text payload returned for paper_id={paper_id}")
+    payload = records[0]
+    text = payload.get("text")
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError(f"Empty PDF text returned for paper_id={paper_id}")
+    return text
+
+
+async def _invoke_tool_async(tool_candidates: tuple[str, ...], payload: dict[str, Any]) -> Any:
     client = _build_mcp_client()
     tools = await client.get_tools(server_name=ARXIV_SERVER_NAME)
     tool_by_name = {tool.name: tool for tool in tools}
 
-    search_tool = None
-    for candidate in SEARCH_TOOL_CANDIDATES:
+    tool = None
+    for candidate in tool_candidates:
         if candidate in tool_by_name:
-            search_tool = tool_by_name[candidate]
+            tool = tool_by_name[candidate]
             break
 
-    if search_tool is None:
+    if tool is None:
         available = ", ".join(sorted(tool_by_name.keys())) or "<none>"
-        raise RuntimeError(f"search tool not found on arXiv MCP server. Available: {available}")
+        expected = ", ".join(tool_candidates)
+        raise RuntimeError(
+            f"Requested MCP tool not found. Expected one of: {expected}. Available: {available}"
+        )
 
-    result = await search_tool.ainvoke({"query": query, "max_results": max_results})
-    return _extract_records(result)
+    return await tool.ainvoke(payload)
 
 
 def search_papers(query: str, max_results: int) -> list[dict[str, Any]]:
     return asyncio.run(_search_papers_async(query=query, max_results=max_results))
+
+
+def get_paper_metadata(paper_id: str) -> dict[str, Any]:
+    return asyncio.run(_get_paper_metadata_async(paper_id=paper_id))
+
+
+def fetch_pdf_text(paper_id: str) -> str:
+    return asyncio.run(_fetch_pdf_text_async(paper_id=paper_id))

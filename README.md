@@ -89,6 +89,7 @@ docker compose down
 - API -> MCP URL: `http://agentrex-mcp:8001/mcp`
 - MCP transport: `streamable_http`
 - MCP container binds on `0.0.0.0:8001` internally
+- Both services use Docker healthchecks and start in dependency order (`service_healthy`)
 
 ## Test Current Endpoints
 
@@ -148,3 +149,4 @@ curl -OJ http://localhost:8000/research/download/<report_file>
 
 - MCP is now network-based (manual FastMCP server), not stdio.
 - If MCP server is unavailable, `/research/analyze` returns `status: "error"` with details in `errors`.
+- MCP tools currently implemented: `search_papers`, `get_paper_metadata`, `fetch_pdf_text`.

@@ -8,11 +8,23 @@ services:
       AGENTREX_ARXIV_MCP_URL: http://agentrex-mcp:8001/mcp
     depends_on:
       agentrex-mcp:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   agentrex-mcp:
@@ -26,4 +38,16 @@ services:
       AGENTREX_ARXIV_MCP_PATH: /mcp
     expose:
       - "8001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.create_connection(('127.0.0.1', 8001), 3); s.close()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
