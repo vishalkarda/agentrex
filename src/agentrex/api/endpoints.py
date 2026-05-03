@@ -1,6 +1,9 @@
+from anyio import to_thread
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from uuid import uuid4
 
+from agentrex.agents.supervisor import get_research_graph
 from agentrex.state.schema import (
     ResearchState,
     build_initial_state,
@@ -19,6 +22,7 @@ class AnalyzeResponse(BaseModel):
     message: str
     query: str
     paper_count: int
+    report_path: str
 
 
 @router.get("/", tags=["system"])
@@ -37,10 +41,17 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         query=request.query,
         paper_count=request.paper_count,
     )
+    graph = get_research_graph()
+    final_state = await to_thread.run_sync(
+        graph.invoke,
+        initial_state,
+        {"configurable": {"thread_id": str(uuid4())}},
+    )
 
     return AnalyzeResponse(
-        status=initial_state["status"],
-        message="Analysis request accepted (stub). Workflow wiring is next.",
-        query=initial_state["query"],
-        paper_count=initial_state["paper_count"],
+        status=final_state["status"],
+        message="Analysis workflow completed (stub graph).",
+        query=final_state["query"],
+        paper_count=final_state["paper_count"],
+        report_path=final_state["report_path"],
     )
