@@ -1,5 +1,7 @@
 from anyio import to_thread
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 from pydantic import BaseModel, Field
 from uuid import uuid4
 
@@ -23,6 +25,7 @@ class AnalyzeResponse(BaseModel):
     query: str
     paper_count: int
     report_path: str
+    report_file: str
 
 
 @router.get("/", tags=["system"])
@@ -50,8 +53,29 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
 
     return AnalyzeResponse(
         status=final_state["status"],
-        message="Analysis workflow completed (stub graph).",
+        message="Analysis workflow completed.",
         query=final_state["query"],
         paper_count=final_state["paper_count"],
         report_path=final_state["report_path"],
+        report_file=Path(final_state["report_path"]).name,
+    )
+
+
+@router.get("/research/download/{filename}", tags=["research"])
+async def download_report(filename: str) -> FileResponse:
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+
+    report_dir = Path("data/reports")
+    report_path = report_dir / filename
+
+    if report_path.name != filename:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    if not report_path.exists() or not report_path.is_file():
+        raise HTTPException(status_code=404, detail="Report not found.")
+
+    return FileResponse(
+        path=report_path,
+        media_type="text/markdown",
+        filename=filename,
     )
