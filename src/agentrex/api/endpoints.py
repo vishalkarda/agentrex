@@ -8,6 +8,7 @@ from uuid import uuid4
 from agentrex.agents.supervisor import get_research_graph
 from agentrex.state.schema import (
     ResearchState,
+    STATUS_ERROR,
     build_initial_state,
 )
 
@@ -26,6 +27,7 @@ class AnalyzeResponse(BaseModel):
     paper_count: int
     report_path: str
     report_file: str
+    errors: list[str] = Field(default_factory=list)
 
 
 @router.get("/", tags=["system"])
@@ -53,11 +55,16 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
 
     return AnalyzeResponse(
         status=final_state["status"],
-        message="Analysis workflow completed.",
+        message=(
+            "Analysis workflow completed."
+            if final_state["status"] != STATUS_ERROR
+            else "Analysis workflow failed."
+        ),
         query=final_state["query"],
         paper_count=final_state["paper_count"],
         report_path=final_state["report_path"],
         report_file=Path(final_state["report_path"]).name,
+        errors=final_state.get("errors", []),
     )
 
 
