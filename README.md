@@ -62,9 +62,13 @@ The API connects to the MCP server via HTTP:
 - `AGENTREX_ARXIV_MCP_URL` (default: `http://127.0.0.1:8001/mcp`)
 - `AGENTREX_ARXIV_MCP_TRANSPORT` (default: `streamable_http`, optional `sse`)
 
-## Run With OrbStack (Docker Compose)
+## Run With OrbStack (Docker Compose, Recommended)
 
-1. Build and start:
+This runs both containers:
+- `agentrex-mcp` (FastMCP arXiv server)
+- `agentrex-api` (FastAPI app connected to MCP over internal Docker network)
+
+1. Build and start both services:
 
 ```bash
 docker compose up --build
@@ -74,11 +78,17 @@ docker compose up --build
 - Swagger UI: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/health`
 
-3. Stop:
+3. Stop both services:
 
 ```bash
 docker compose down
 ```
+
+### Compose Connection Settings
+
+- API -> MCP URL: `http://agentrex-mcp:8001/mcp`
+- MCP transport: `streamable_http`
+- MCP container binds on `0.0.0.0:8001` internally
 
 ## Test Current Endpoints
 

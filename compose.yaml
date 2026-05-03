@@ -3,8 +3,27 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      AGENTREX_ARXIV_MCP_TRANSPORT: streamable_http
+      AGENTREX_ARXIV_MCP_URL: http://agentrex-mcp:8001/mcp
+    depends_on:
+      agentrex-mcp:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    restart: unless-stopped
+
+  agentrex-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["uv", "run", "python", "-m", "agentrex.mcp_server.arxiv_server"]
+    environment:
+      AGENTREX_ARXIV_MCP_HOST: 0.0.0.0
+      AGENTREX_ARXIV_MCP_PORT: "8001"
+      AGENTREX_ARXIV_MCP_PATH: /mcp
+    expose:
+      - "8001"
     restart: unless-stopped
